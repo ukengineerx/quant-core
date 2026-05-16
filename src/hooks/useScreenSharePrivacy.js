@@ -4,52 +4,73 @@ export function useScreenSharePrivacy() {
   const [isScreenSharing, setIsScreenSharing] = useState(false)
 
   useEffect(() => {
-    let mediaStream = null
+    let checkInterval = null
 
-    const detectScreenShare = async () => {
+    const checkCapture = async () => {
       try {
-        // Check if getDisplayMedia is available (screen sharing capability)
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
-          return
-        }
-
-        // Listen for screen capture events
-        const checkScreenShare = () => {
-          if (navigator.mediaSession) {
-            // Some browsers expose screen capture status
-            const isSharing = document.hidden === false &&
-                            document.visibilityState === 'visible'
-            setIsScreenSharing(isSharing)
+        // Method 1: Check if browser tab is being captured via permissions
+        if (navigator.permissions && navigator.permissions.query) {
+          try {
+            const result = await navigator.permissions.query({ name: 'camera' })
+            if (result.state === 'granted') {
+              setIsScreenSharing(true)
+              return
+            }
+          } catch (e) {
+            // Permission query not supported
           }
         }
 
-        // Monitor for visibility changes (screen share often changes visibility state)
-        document.addEventListener('visibilitychange', checkScreenShare)
+        // Method 2: Check for active media streams and capture handles
+        if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+          const devices = await navigator.mediaDevices.enumerateDevices()
+          // If there are active capture devices, screen might be shared
+          const hasVideoInput = devices.some(d => d.kind === 'videoinput' && d.deviceId !== '')
+          const hasAudioInput = devices.some(d => d.kind === 'audioinput' && d.deviceId !== '')
 
-        // Check if screen sharing is active by monitoring for capture-handle (if available)
-        if (navigator.mediaDevices.getDisplayMedia) {
-          const captureHandle = navigator.mediaDevices.getDisplayMedia
-          // If user has initiated screen sharing, apply blur
+          if (hasVideoInput && hasAudioInput) {
+            setIsScreenSharing(true)
+            return
+          }
         }
 
-        return () => {
-          document.removeEventListener('visibilitychange', checkScreenShare)
+        // Method 3: Check if document.documentElement has capture handle
+        if (document.documentElement.hasAttribute('data-capture')) {
+          setIsScreenSharing(true)
+          return
+        }
+
+        // Method 4: Monitor for changes in screen properties (Discord detection)
+        const checkScreenProperties = () => {
+          // If screen dimensions or properties change unexpectedly
+          if (window.innerHeight < screen.height * 0.95) {
+            setIsScreenSharing(true)
+            return true
+          }
+          return false
+        }
+
+        if (!checkScreenProperties()) {
+          setIsScreenSharing(false)
         }
       } catch (err) {
-        console.debug('Screen share detection unavailable')
+        // Silent catch
       }
     }
 
-    detectScreenShare()
+    // Initial check
+    checkCapture()
 
-    // Also detect screen sharing attempts
+    // Set up periodic checking (every 500ms for responsive blur)
+    checkInterval = setInterval(checkCapture, 500)
+
+    // Detect when getDisplayMedia is called (browser screen share)
     const originalGetDisplayMedia = navigator.mediaDevices?.getDisplayMedia
     if (originalGetDisplayMedia) {
       navigator.mediaDevices.getDisplayMedia = async function(...args) {
         setIsScreenSharing(true)
         const stream = await originalGetDisplayMedia.apply(this, args)
 
-        // When screen share stops, remove blur
         stream.getTracks().forEach(track => {
           track.addEventListener('ended', () => {
             setIsScreenSharing(false)
@@ -60,10 +81,23 @@ export function useScreenSharePrivacy() {
       }
     }
 
+    // Listen for visibility changes
+    const handleVisibilityChange = () => {
+      checkCapture()
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('focus', checkCapture)
+    window.addEventListener('blur', () => {
+      // When window loses focus, might be screen sharing
+      setTimeout(checkCapture, 100)
+    })
+
     return () => {
-      if (mediaStream) {
-        mediaStream.getTracks().forEach(track => track.stop())
-      }
+      if (checkInterval) clearInterval(checkInterval)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('focus', checkCapture)
+      window.removeEventListener('blur', checkCapture)
     }
   }, [])
 
