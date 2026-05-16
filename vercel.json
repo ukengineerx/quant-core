@@ -1,0 +1,8 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "env": {
+    "VITE_AUTH_USERNAME": "@quantum_auth_username",
+    "VITE_AUTH_PASSWORD": "@quantum_auth_password"
+  }
+}
