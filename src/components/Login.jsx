@@ -29,8 +29,8 @@ export default function Login({ onLogin }) {
   return (
     <div className="login-container">
       <div className="login-box">
-        <h1>Quantum Founder Roadmap</h1>
-        <p className="subtitle">Secure Access Required</p>
+        <h1>Access</h1>
+        <p className="subtitle">Please sign in</p>
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
