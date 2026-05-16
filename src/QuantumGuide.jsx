@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 
 const PHASES = [
   {
@@ -355,7 +355,10 @@ const ProgressRing = ({ pct, color, size = 48 }) => {
 
 export default function App() {
   const [tab, setTab] = useState("dashboard");
-  const [checked, setChecked] = useState({});
+  const [checked, setChecked] = useState(() => {
+    const saved = localStorage.getItem("quantum-checked-tasks");
+    return saved ? JSON.parse(saved) : {};
+  });
   const [expandedOp, setExpandedOp] = useState(null);
   const [expandedPhase, setExpandedPhase] = useState(0);
   const [opView, setOpView] = useState({});
@@ -366,6 +369,10 @@ export default function App() {
   const [discoverError, setDiscoverError] = useState("");
   const [watchlist, setWatchlist] = useState([]);
   const [discoverLog, setDiscoverLog] = useState([]);
+
+  useEffect(() => {
+    localStorage.setItem("quantum-checked-tasks", JSON.stringify(checked));
+  }, [checked]);
 
   const PROFILE = `User profile for context:
 - Name: Ujjwal, 25 years old, Meerut, India
