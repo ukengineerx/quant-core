@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import Login from './components/Login'
 import QuantumGuide from './QuantumGuide'
+import { useScreenSharePrivacy } from './hooks/useScreenSharePrivacy'
 import './App.css'
 
 function App() {
@@ -8,6 +9,7 @@ function App() {
     const stored = localStorage.getItem('auth-token')
     return stored !== null
   })
+  const isScreenSharing = useScreenSharePrivacy()
 
   const handleLogin = (token) => {
     localStorage.setItem('auth-token', token)
@@ -19,11 +21,17 @@ function App() {
     setIsAuthenticated(false)
   }
 
-  if (!isAuthenticated) {
-    return <Login onLogin={handleLogin} />
+  const appStyle = {
+    filter: isScreenSharing ? 'blur(10px)' : 'none',
+    transition: 'filter 0.3s ease-in-out',
+    position: 'relative'
   }
 
-  return <QuantumGuide onLogout={handleLogout} />
+  if (!isAuthenticated) {
+    return <div style={appStyle}><Login onLogin={handleLogin} /></div>
+  }
+
+  return <div style={appStyle}><QuantumGuide onLogout={handleLogout} /></div>
 }
 
 export default App
